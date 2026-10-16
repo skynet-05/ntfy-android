@@ -590,6 +590,9 @@ interface NotificationDao {
     @Query("SELECT * FROM notification WHERE subscriptionId = :subscriptionId AND deleted != 1 ORDER BY timestamp DESC")
     fun listFlow(subscriptionId: Long): Flow<List<Notification>>
 
+    @Query("SELECT * FROM notification WHERE subscriptionId IN (:subscriptionIds) AND deleted != 1")
+    fun listActiveForSubscriptions(subscriptionIds: List<Long>): List<Notification>
+
     @Query("""
         SELECT * FROM notification
         WHERE subscriptionId = :subscriptionId

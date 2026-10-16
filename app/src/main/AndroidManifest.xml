@@ -34,6 +34,37 @@
             android:localeConfig="@xml/locales_config"
             android:usesCleartextTraffic="true">
 
+        <!-- Home screen notifications widget -->
+        <receiver
+                android:name=".widget.NotificationsWidgetProvider"
+                android:exported="true"
+                android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="io.heckel.ntfy.widget.ACTION_ITEM_CLICK"/>
+            </intent-filter>
+            <meta-data
+                    android:name="android.appwidget.provider"
+                    android:resource="@xml/notifications_widget_info"/>
+        </receiver>
+
+        <service
+                android:name=".widget.NotificationsWidgetService"
+                android:exported="false"
+                android:permission="android.permission.BIND_REMOTEVIEWS"/>
+
+        <activity
+                android:name=".widget.WidgetConfigureActivity"
+                android:exported="true"
+                android:theme="@style/AppTheme"
+                android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
+            </intent-filter>
+        </activity>
+
         <!-- Main activity -->
         <activity
                 android:name=".ui.MainActivity"

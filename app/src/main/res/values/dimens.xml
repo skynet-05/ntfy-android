@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="fab_margin">24dp</dimen>
+    <dimen name="widget_corner_radius_fallback">16dp</dimen>
+    <dimen name="widget_corner_radius">@dimen/widget_corner_radius_fallback</dimen>
 </resources>
