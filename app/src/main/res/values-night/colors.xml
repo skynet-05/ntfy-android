@@ -46,6 +46,9 @@
     <color name="md_theme_surfaceContainerLow">#1B1B1B</color>
     <color name="md_theme_surfaceContainer">#1B2023</color>
     <color name="widget_surface">@color/md_theme_surfaceContainer</color>
+    <color name="widget_item_title">@color/md_theme_onSurface</color>
+    <color name="widget_item_subtitle">@color/md_theme_onSurfaceVariant</color>
+    <color name="widget_empty_text">@color/md_theme_onSurfaceVariant</color>
     <color name="md_theme_surfaceContainerHigh">#282F33</color>
     <color name="md_theme_surfaceContainerHighest">#333333</color>
     <color name="md_theme_primary_mediumContrast">#9AECD7</color>

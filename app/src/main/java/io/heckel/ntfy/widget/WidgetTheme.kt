@@ -21,20 +21,6 @@ object WidgetTheme {
         return context
     }
 
-    fun applyListItemColors(context: Context, views: RemoteViews, viewId: Int) {
-        val themed = widgetContext(context)
-        val surface = MaterialColors.getColor(themed, com.google.android.material.R.attr.colorSurface, 0)
-        val onSurface = MaterialColors.getColor(themed, com.google.android.material.R.attr.colorOnSurface, 0)
-        val onSurfaceVariant = MaterialColors.getColor(themed, com.google.android.material.R.attr.colorOnSurfaceVariant, 0)
-        val outline = MaterialColors.getColor(themed, com.google.android.material.R.attr.colorOutlineVariant, 0)
-
-        views.setInt(viewId, "setBackgroundColor", surface)
-        views.setTextColor(R.id.widget_item_title, onSurface)
-        views.setTextColor(R.id.widget_item_topic, onSurfaceVariant)
-        views.setTextColor(R.id.widget_item_time, onSurfaceVariant)
-        views.setInt(R.id.widget_item_divider, "setBackgroundColor", outline)
-    }
-
     fun createWidgetBackground(context: Context): GradientDrawable {
         val themed = widgetContext(context)
         val surface = MaterialColors.getColor(themed, com.google.android.material.R.attr.colorSurfaceContainer, 0)
@@ -46,9 +32,8 @@ object WidgetTheme {
     }
 
     fun applyEmptyStateColors(context: Context, views: RemoteViews) {
-        val themed = widgetContext(context)
-        val onSurfaceVariant = MaterialColors.getColor(themed, com.google.android.material.R.attr.colorOnSurfaceVariant, 0)
-        views.setTextColor(R.id.widget_empty_text, onSurfaceVariant)
+        val color = ContextCompat.getColor(context, R.color.widget_empty_text)
+        views.setTextColor(R.id.widget_empty_text, color)
     }
 
     fun emptyIconTint(context: Context): Int {

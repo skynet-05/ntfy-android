@@ -572,7 +572,9 @@
     <!-- Home screen widget -->
     <string name="widget_name">ntfy</string>
     <string name="widget_description">Recent notifications from your subscribed topics</string>
-    <string name="widget_empty">No messages to show</string>
+    <string name="widget_empty">Nothing to see</string>
+    <string name="widget_loading_row">…</string>
+    <string name="widget_attachment_row">Attachment</string>
     <string name="widget_untitled_message">(No title)</string>
     <string name="widget_unknown_topic">Unknown topic</string>
     <string name="widget_configure_title">Widget topics</string>
