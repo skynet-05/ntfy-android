@@ -7,6 +7,8 @@ import io.heckel.ntfy.db.Subscription
 import io.heckel.ntfy.util.decodeMessage
 import io.heckel.ntfy.util.displayName
 import io.heckel.ntfy.util.formatDateShort
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 
 data class WidgetListItem(
     val notificationId: String,
@@ -20,7 +22,17 @@ data class WidgetListItem(
 )
 
 object WidgetDataProvider {
+    /**
+     * Loads widget rows. Room access runs on a background dispatcher because this is
+     * called from AppWidgetProvider (main thread) and from RemoteViewsService.
+     */
     fun loadItems(context: Context, appWidgetId: Int): List<WidgetListItem> {
+        return runBlocking(Dispatchers.IO) {
+            loadItemsBlocking(context, appWidgetId)
+        }
+    }
+
+    internal fun loadItemsBlocking(context: Context, appWidgetId: Int): List<WidgetListItem> {
         val config = WidgetConfigStore.load(context, appWidgetId)
         val enabledIds = config.topics.filter { it.enabled }.map { it.subscriptionId }
         if (enabledIds.isEmpty()) {

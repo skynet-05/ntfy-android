@@ -89,6 +89,10 @@ android {
             ]
         }
     }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
 }
 
 // Disables GoogleServices tasks for F-Droid variant
