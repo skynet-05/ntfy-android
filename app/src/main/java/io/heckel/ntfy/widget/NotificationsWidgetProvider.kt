@@ -94,11 +94,6 @@ class NotificationsWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.widget_list, View.GONE)
                 views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
                 WidgetTheme.applyEmptyStateColors(context, views)
-                views.setInt(
-                    R.id.widget_empty_icon,
-                    "setColorFilter",
-                    WidgetTheme.emptyIconTint(context)
-                )
             } else {
                 views.setViewVisibility(R.id.widget_list, View.VISIBLE)
                 views.setViewVisibility(R.id.widget_empty, View.GONE)

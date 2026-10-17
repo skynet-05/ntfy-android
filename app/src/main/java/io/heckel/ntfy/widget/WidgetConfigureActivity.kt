@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowInsetsControllerCompat
@@ -97,6 +98,10 @@ class WidgetConfigureActivity : AppCompatActivity() {
 
         saveButton.setOnClickListener { saveAndFinish() }
 
+        onBackPressedDispatcher.addCallback(this) {
+            saveAndFinish()
+        }
+
         lifecycleScope.launch {
             loadTopics()
         }
@@ -143,7 +148,14 @@ class WidgetConfigureActivity : AppCompatActivity() {
         )
     }
 
+    private var finishingAfterSave = false
+
     private fun saveAndFinish() {
+        if (finishingAfterSave) {
+            return
+        }
+        finishingAfterSave = true
+
         val topics = adapter.currentRows().map { row ->
             WidgetTopicConfig(
                 subscriptionId = row.subscriptionId,
@@ -153,23 +165,30 @@ class WidgetConfigureActivity : AppCompatActivity() {
         }
         WidgetConfigStore.save(this, appWidgetId, WidgetInstanceConfig(topics))
 
-        val manager = AppWidgetManager.getInstance(this)
-        NotificationsWidgetProvider.updateAppWidget(this, manager, appWidgetId)
-        manager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list)
+        try {
+            val manager = AppWidgetManager.getInstance(this)
+            NotificationsWidgetProvider.updateAppWidget(this, manager, appWidgetId)
+            manager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list)
+        } catch (e: Exception) {
+            // Still confirm widget placement to the host; it can refresh on next update.
+            io.heckel.ntfy.util.Log.w(TAG, "Widget update failed during configure: ${e.message}", e)
+        }
 
-        val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        setResult(RESULT_OK, result)
-
+        setResult(RESULT_OK, WidgetConfigureResult.success(appWidgetId))
         Toast.makeText(this, R.string.widget_configure_saved, Toast.LENGTH_SHORT).show()
         finish()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
-            finish()
+            saveAndFinish()
             return true
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    companion object {
+        private const val TAG = "WidgetConfigure"
     }
 }
 
