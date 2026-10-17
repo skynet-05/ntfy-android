@@ -568,4 +568,21 @@
     <string name="client_certificate_dialog_error_wrong_password">Wrong password or invalid PKCS#12 file</string>
     <string name="client_certificate_dialog_error_invalid_p12_password">Invalid password or corrupted PKCS#12 file</string>
     <string name="client_certificate_dialog_error_invalid_url">Invalid service URL</string>
+
+    <!-- Home screen widget -->
+    <string name="widget_name">ntfy</string>
+    <string name="widget_description">Recent notifications from your subscribed topics</string>
+    <string name="widget_empty">No messages to show</string>
+    <string name="widget_untitled_message">(No title)</string>
+    <string name="widget_unknown_topic">Unknown topic</string>
+    <string name="widget_configure_title">Widget topics</string>
+    <string name="widget_configure_description">Choose topics, set a minimum priority for each, and drag or use the arrows to set order. Messages from higher topics appear first.</string>
+    <string name="widget_configure_empty">Subscribe to at least one topic in the app to use this widget.</string>
+    <string name="widget_configure_min_priority">Minimum priority</string>
+    <string name="widget_configure_move_up">Move topic up</string>
+    <string name="widget_configure_move_down">Move topic down</string>
+    <string name="widget_configure_saved">Widget saved</string>
+    <string name="widget_preview_message_title">Disk space low on server</string>
+    <string name="widget_preview_topic">alerts</string>
+    <string name="widget_preview_time">2:30 PM</string>
 </resources>

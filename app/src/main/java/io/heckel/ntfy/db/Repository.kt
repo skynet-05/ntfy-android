@@ -14,6 +14,7 @@ import androidx.lifecycle.asLiveData
 import androidx.lifecycle.map
 import io.heckel.ntfy.msg.ApiService
 import io.heckel.ntfy.util.Log
+import io.heckel.ntfy.widget.WidgetUpdater
 import io.heckel.ntfy.util.validUrl
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -102,6 +103,7 @@ class Repository(private val sharedPrefs: SharedPreferences, database: Database)
         notificationDao.removeAll(subscription.id)
         subscriptionDao.remove(subscription.id)
         updateConnectionDetails(subscription.baseUrl, ConnectionState.NOT_APPLICABLE)
+        notifyWidgetsChanged()
     }
 
     suspend fun getNotifications(): List<Notification> {
@@ -128,6 +130,13 @@ class Repository(private val sharedPrefs: SharedPreferences, database: Database)
         return notificationDao.listFlowFiltered(subscriptionId, query).asLiveData()
     }
 
+    fun getActiveNotificationsForSubscriptions(subscriptionIds: List<Long>): List<Notification> {
+        if (subscriptionIds.isEmpty()) {
+            return emptyList()
+        }
+        return notificationDao.listActiveForSubscriptions(subscriptionIds)
+    }
+
     fun getNotification(notificationId: String): Notification? {
         return notificationDao.get(notificationId)
     }
@@ -145,23 +154,28 @@ class Repository(private val sharedPrefs: SharedPreferences, database: Database)
         }
         subscriptionDao.updateLastNotificationId(notification.subscriptionId, notification.id)
         notificationDao.add(notification)
+        notifyWidgetsChanged()
         return true
     }
 
     fun updateNotification(notification: Notification) {
         notificationDao.update(notification)
+        notifyWidgetsChanged()
     }
 
     fun undeleteNotification(notificationId: String) {
         notificationDao.undelete(notificationId)
+        notifyWidgetsChanged()
     }
 
     fun markAsDeleted(notificationId: String) {
         notificationDao.markAsDeleted(notificationId)
+        notifyWidgetsChanged()
     }
 
     fun markAsDeletedBySequenceId(subscriptionId: Long, sequenceId: String) {
         notificationDao.markAsDeletedBySequenceId(subscriptionId, sequenceId)
+        notifyWidgetsChanged()
     }
 
     fun updateLastNotificationId(subscriptionId: Long, notificationId: String) {
@@ -179,6 +193,7 @@ class Repository(private val sharedPrefs: SharedPreferences, database: Database)
 
     fun markAllAsDeleted(subscriptionId: Long) {
         notificationDao.markAllAsDeleted(subscriptionId)
+        notifyWidgetsChanged()
     }
 
     fun markAllAsRead(subscriptionId: Long) {
@@ -191,10 +206,12 @@ class Repository(private val sharedPrefs: SharedPreferences, database: Database)
 
     fun markAsDeletedIfOlderThan(subscriptionId: Long, olderThanTimestamp: Long) {
         notificationDao.markAsDeletedIfOlderThan(subscriptionId, olderThanTimestamp)
+        notifyWidgetsChanged()
     }
 
     fun removeNotificationsIfOlderThan(subscriptionId: Long, olderThanTimestamp: Long) {
         notificationDao.removeIfOlderThan(subscriptionId, olderThanTimestamp)
+        notifyWidgetsChanged()
     }
 
     suspend fun getUsers(): List<User> {
@@ -641,6 +658,11 @@ class Repository(private val sharedPrefs: SharedPreferences, database: Database)
         Log.d(TAG, "Connection force reconnect version incremented for $baseUrl: ${connectionForceReconnectVersions[baseUrl]}")
     }
 
+    private fun notifyWidgetsChanged() {
+        val context = Companion.applicationContext ?: return
+        WidgetUpdater.updateAll(context)
+    }
+
     companion object {
         const val SHARED_PREFS_ID = "MainPreferences"
         const val SHARED_PREFS_POLL_WORKER_VERSION = "PollWorkerVersion"
@@ -718,8 +740,10 @@ class Repository(private val sharedPrefs: SharedPreferences, database: Database)
 
         private const val TAG = "NtfyRepository"
         private var instance: Repository? = null
+        private var applicationContext: Context? = null
 
         fun getInstance(context: Context): Repository {
+            applicationContext = context.applicationContext
             val database = Database.getInstance(context.applicationContext)
             val sharedPrefs = context.getSharedPreferences(SHARED_PREFS_ID, Context.MODE_PRIVATE)
             return getInstance(sharedPrefs, database)
