@@ -1,6 +1,7 @@
 package io.heckel.ntfy.widget
 
 import android.content.Context
+import android.os.Looper
 import io.heckel.ntfy.db.Notification
 import io.heckel.ntfy.db.Repository
 import io.heckel.ntfy.db.Subscription
@@ -23,29 +24,53 @@ data class WidgetListItem(
 
 object WidgetDataProvider {
     /**
-     * Loads widget rows. Room access runs on a background dispatcher because this is
-     * called from AppWidgetProvider (main thread) and from RemoteViewsService.
+     * Loads widget rows. Room runs on IO when called from the main thread (AppWidgetProvider).
+     * RemoteViewsService already calls from a worker thread — avoid nested runBlocking there.
      */
     fun loadItems(context: Context, appWidgetId: Int): List<WidgetListItem> {
-        return runBlocking(Dispatchers.IO) {
+        return if (Looper.getMainLooper() == Looper.myLooper()) {
+            runBlocking(Dispatchers.IO) { loadItemsBlocking(context, appWidgetId) }
+        } else {
             loadItemsBlocking(context, appWidgetId)
         }
     }
 
     internal fun loadItemsBlocking(context: Context, appWidgetId: Int): List<WidgetListItem> {
         val config = WidgetConfigStore.load(context, appWidgetId)
-        val enabledIds = config.topics.filter { it.enabled }.map { it.subscriptionId }
-        if (enabledIds.isEmpty()) {
+        val enabledConfigs = config.topics.filter { it.enabled }
+        if (enabledConfigs.isEmpty()) {
             return emptyList()
         }
-        val repository = Repository.getInstance(context)
-        val appBaseUrl = context.getString(io.heckel.ntfy.R.string.app_base_url)
-        val notifications = repository.getActiveNotificationsForSubscriptions(enabledIds)
-        val sorted = WidgetMessageSorter.filterAndSort(notifications, config.topics)
-        val subscriptionById = enabledIds.associateWith { id -> repository.getSubscription(id) }
 
-        return sorted.map { notification ->
-            toListItem(context, appBaseUrl, notification, subscriptionById[notification.subscriptionId])
+        val repository = Repository.getInstance(context)
+        val subscriptionById = enabledConfigs
+            .map { it.subscriptionId }
+            .distinct()
+            .mapNotNull { id -> repository.getSubscription(id)?.let { sub -> id to sub } }
+            .toMap()
+
+        if (subscriptionById.isEmpty()) {
+            return emptyList()
+        }
+
+        val activeSubscriptionIds = subscriptionById.keys.toList()
+        val notifications = repository.getActiveNotificationsForSubscriptions(activeSubscriptionIds)
+        val sorted = WidgetMessageSorter.filterAndSort(
+            notifications,
+            enabledConfigs.filter { subscriptionById.containsKey(it.subscriptionId) },
+        )
+
+        val appBaseUrl = context.getString(io.heckel.ntfy.R.string.app_base_url)
+        val untitled = context.getString(io.heckel.ntfy.R.string.widget_untitled_message)
+        val attachmentLabel = context.getString(io.heckel.ntfy.R.string.widget_attachment_row)
+        val unknownTopic = context.getString(io.heckel.ntfy.R.string.widget_unknown_topic)
+
+        return sorted.mapNotNull { notification ->
+            val subscription = subscriptionById[notification.subscriptionId]
+            if (subscription == null) {
+                return@mapNotNull null
+            }
+            toListItem(context, appBaseUrl, notification, subscription, untitled, attachmentLabel, unknownTopic)
         }
     }
 
@@ -53,19 +78,26 @@ object WidgetDataProvider {
         context: Context,
         appBaseUrl: String,
         notification: Notification,
-        subscription: Subscription?,
+        subscription: Subscription,
+        untitledLabel: String,
+        attachmentLabel: String,
+        unknownTopic: String,
     ): WidgetListItem {
         val decodedMessage = decodeMessage(notification)
-        val title = when {
-            notification.title.isNotBlank() -> notification.title
-            decodedMessage.isNotBlank() -> decodedMessage
-            else -> context.getString(io.heckel.ntfy.R.string.widget_untitled_message)
-        }.let { if (it.length > 120) it.take(117) + "…" else it }
+        val title = WidgetMessageContent.displayTitle(
+            notification,
+            decodedMessage,
+            untitledLabel,
+            attachmentLabel,
+        )
 
-        val topicLabel = subscription?.let { displayName(appBaseUrl, it) }
-            ?: context.getString(io.heckel.ntfy.R.string.widget_unknown_topic)
-
+        val topicLabel = displayName(appBaseUrl, subscription).ifBlank { unknownTopic }
         val priorityIcon = WidgetTheme.priorityIconRes(notification.priority)
+        val clickUrl = if (WidgetMessageContent.isClickUrlOpenable(notification.click)) {
+            notification.click.trim()
+        } else {
+            ""
+        }
 
         return WidgetListItem(
             notificationId = notification.id,
@@ -74,7 +106,7 @@ object WidgetDataProvider {
             topicLabel = topicLabel,
             timeLabel = formatDateShort(notification.timestamp),
             priority = notification.priority,
-            clickUrl = notification.click,
+            clickUrl = clickUrl,
             priorityIconRes = priorityIcon,
         )
     }

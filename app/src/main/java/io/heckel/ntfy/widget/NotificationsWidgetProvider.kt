@@ -5,8 +5,6 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.net.toUri
@@ -33,9 +31,15 @@ class NotificationsWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == ACTION_WIDGET_ITEM_CLICK) {
-            handleItemClick(context, intent)
-            return
+        when (intent.action) {
+            ACTION_WIDGET_ITEM_CLICK -> {
+                handleItemClick(context, intent)
+                return
+            }
+            Intent.ACTION_MY_PACKAGE_REPLACED -> {
+                WidgetUpdater.updateAll(context.applicationContext)
+                return
+            }
         }
         super.onReceive(context, intent)
     }
@@ -43,12 +47,16 @@ class NotificationsWidgetProvider : AppWidgetProvider() {
     private fun handleItemClick(context: Context, intent: Intent) {
         val clickUrl = intent.getStringExtra(EXTRA_CLICK_URL) ?: ""
         val subscriptionId = intent.getLongExtra(EXTRA_SUBSCRIPTION_ID, 0L)
-        if (clickUrl.isNotBlank()) {
-            val viewIntent = Intent(Intent.ACTION_VIEW, clickUrl.toUri()).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        if (WidgetMessageContent.isClickUrlOpenable(clickUrl)) {
+            try {
+                val viewIntent = Intent(Intent.ACTION_VIEW, clickUrl.trim().toUri()).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(viewIntent)
+                return
+            } catch (_: Exception) {
+                // Fall through to topic detail
             }
-            context.startActivity(viewIntent)
-            return
         }
         val repository = Repository.getInstance(context)
         val subscription = repository.getSubscription(subscriptionId)
@@ -79,7 +87,6 @@ class NotificationsWidgetProvider : AppWidgetProvider() {
         const val EXTRA_SUBSCRIPTION_ID = "subscriptionId"
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            val items = WidgetDataProvider.loadItems(context, appWidgetId)
             val views = RemoteViews(context.packageName, R.layout.widget_notifications)
 
             val themed = WidgetTheme.widgetContext(context)
@@ -90,28 +97,16 @@ class NotificationsWidgetProvider : AppWidgetProvider() {
             )
             views.setInt(R.id.widget_root, "setBackgroundColor", surfaceColor)
 
-            if (items.isEmpty()) {
-                views.setViewVisibility(R.id.widget_list, View.GONE)
-                views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
-                WidgetTheme.applyEmptyStateColors(context, views)
-            } else {
-                views.setViewVisibility(R.id.widget_list, View.VISIBLE)
-                views.setViewVisibility(R.id.widget_empty, View.GONE)
+            views.setViewVisibility(R.id.widget_list, View.VISIBLE)
+            views.setTextViewText(R.id.widget_empty_text, context.getString(R.string.widget_empty))
+            WidgetTheme.applyEmptyStateColors(context, views)
 
-                val serviceIntent = Intent(context, NotificationsWidgetService::class.java).apply {
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                    data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
-                }
-                views.setRemoteAdapter(R.id.widget_list, serviceIntent)
-
-                val clickIntent = Intent(context, NotificationsWidgetProvider::class.java).apply {
-                    action = ACTION_WIDGET_ITEM_CLICK
-                }
-                val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
-                val pendingIntent = PendingIntent.getBroadcast(context, appWidgetId, clickIntent, flags)
-                views.setPendingIntentTemplate(R.id.widget_list, pendingIntent)
-            }
+            WidgetRemoteViewsHelper.bindCollectionList(
+                context,
+                views,
+                appWidgetId,
+                WidgetRemoteViewsHelper.itemClickTemplate(context, appWidgetId),
+            )
 
             val repository = Repository.getInstance(context)
             val dynamicColors = repository.getDynamicColorsEnabled()
@@ -121,6 +116,7 @@ class NotificationsWidgetProvider : AppWidgetProvider() {
 
             val configureIntent = Intent(context, WidgetConfigureActivity::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                setPackage(context.packageName)
             }
             val configurePending = PendingIntent.getActivity(
                 context,
@@ -131,6 +127,7 @@ class NotificationsWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widget_header, configurePending)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list)
         }
     }
 }
